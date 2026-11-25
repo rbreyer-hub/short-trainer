@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Short Side Trainer</title>
+<link rel="stylesheet" href="styles.css?v=2">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">▼</span> Short Side <small>short-selling trainer · small &amp; large caps</small></div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="learn">Learn</button>
+    <button data-tab="sim">Simulator</button>
+    <button data-tab="calc">Size Calc</button>
+    <button data-tab="grade">Setup Grader</button>
+    <button data-tab="journal">Journal</button>
+  </nav>
+</header>
+
+<div class="disclaimer">This tool is for learning. It is not financial advice. Short selling can lose more than you put in, and small caps can squeeze and halt without warning. The simulator uses made-up price data.</div>
+
+<main>
+<!-- LEARN -->
+<section id="tab-learn" class="tab">
+  <div class="learn-layout">
+    <aside class="lesson-nav card">
+      <div class="progress-wrap"><div class="progress-label" id="learnProgressLabel"></div><div class="progress"><div id="learnProgress"></div></div></div>
+      <ol id="lessonList"></ol>
+      <button class="btn wide" id="quizBtn">Take the quiz →</button>
+    </aside>
+    <article class="card lesson" id="lessonBody"></article>
+  </div>
+</section>
+
+<!-- SIM -->
+<section id="tab-sim" class="tab">
+  <div class="sim-layout">
+    <div class="sim-main">
+      <div class="card ticker-card" id="tickerCard"></div>
+      <div class="card chart-card">
+        <div class="chart-banner" id="chartBanner"></div>
+        <canvas id="simChart"></canvas>
+        <div class="sim-controls">
+          <select id="univSel" title="Which kind of stock to trade">
+            <option value="small">Small caps</option>
+            <option value="large">Large caps (liquid)</option>
+          </select>
+          <button class="btn" id="playBtn">▶ Play</button>
+          <button class="btn ghost" id="stepBtn">Step ⏭</button>
+          <label>Speed
+            <select id="speedSel">
+              <option value="1000">1 bar/s</option>
+              <option value="500" selected>2 bars/s</option>
+              <option value="250">4 bars/s</option>
+              <option value="100">10 bars/s</option>
+            </select>
+          </label>
+          <span class="clock" id="simClock">9:30</span>
+          <button class="btn ghost right" id="newSimBtn">New stock ↻</button>
+        </div>
+      </div>
+    </div>
+    <aside class="sim-side">
+      <div class="card">
+        <div class="stat-grid" id="simStats"></div>
+      </div>
+      <div class="card order-card">
+        <h3>Order entry</h3>
+        <div class="row">
+          <label>Shares <input type="number" id="qtyInput" value="1000" min="1" step="100"></label>
+          <label>Stop <input type="number" id="stopInput" step="0.01" placeholder="none"></label>
+        </div>
+        <div class="row small-btns">
+          <button class="btn ghost sm" id="stopHodBtn">Stop above HOD</button>
+          <button class="btn ghost sm" id="stopClearBtn">Clear stop</button>
+          <button class="btn ghost sm" id="sizeBtn" title="Size so a stop-out loses 1% of equity">Size to 1% risk</button>
+        </div>
+        <div class="row" id="locateRow">
+          <button class="btn ghost" id="locateBtn">Locate shares</button>
+          <span class="muted" id="locateInfo"></span>
+        </div>
+        <div class="row">
+          <button class="btn short" id="shortBtn">SHORT <kbd>S</kbd></button>
+          <button class="btn cover" id="coverHalfBtn">Cover ½</button>
+          <button class="btn cover" id="coverBtn">COVER <kbd>C</kbd></button>
+        </div>
+        <div class="msg" id="orderMsg"></div>
+      </div>
+      <div class="card">
+        <h3>Tape / log</h3>
+        <ul class="log" id="simLog"></ul>
+      </div>
+      <p class="muted tiny">Keys: <kbd>Space</kbd> play/pause · <kbd>→</kbd> step · <kbd>S</kbd> short · <kbd>C</kbd> cover</p>
+    </aside>
+  </div>
+</section>
+
+<!-- CALC -->
+<section id="tab-calc" class="tab">
+  <div class="two-col">
+    <div class="card">
+      <h2>Short position sizing</h2>
+      <p class="muted">Size the trade from your stop distance first. Then check how much a halt that gaps past your stop would cost you.</p>
+      <div class="form-grid" id="calcForm">
+        <label>Account equity ($)<input type="number" id="cEquity" value="30000"></label>
+        <label>Risk per trade (%)<input type="number" id="cRiskPct" value="1" step="0.25"></label>
+        <label>Short entry price<input type="number" id="cEntry" value="4.20" step="0.01"></label>
+        <label>Stop price (above entry)<input type="number" id="cStop" value="4.55" step="0.01"></label>
+        <label>Locate fee ($/share)<input type="number" id="cLocate" value="0.03" step="0.005"></label>
+        <label>Commission per order ($)<input type="number" id="cComm" value="1" step="0.5"></label>
+        <label>Prior day close (for SSR)<input type="number" id="cPrevClose" value="2.10" step="0.01"></label>
+        <label>Halt / gap stress test (% over stop)<input type="number" id="cGap" value="25" step="5"></label>
+      </div>
+    </div>
+    <div class="card" id="calcOut"></div>
+  </div>
+</section>
+
+<!-- GRADER -->
+<section id="tab-grade" class="tab">
+  <div class="two-col">
+    <div class="card">
+      <h2>Pre-trade setup grader</h2>
+      <p class="muted">Fill this in before every short. A good score means the setup is worth watching. You still need a trigger before you enter.</p>
+      <div class="form-grid" id="gradeForm">
+        <label>Universe
+          <select id="gUni">
+            <option value="small">Small cap (low float, hot runner)</option>
+            <option value="large">Large cap (liquid, institutional)</option>
+          </select></label>
+        <label>Ticker<input type="text" id="gTicker" placeholder="ABCD" maxlength="6"></label>
+        <label class="small-only">Run from prior close (%)<input type="number" id="gRun" value="80"></label>
+        <label class="small-only">Float (millions)<input type="number" id="gFloat" value="8" step="0.5"></label>
+        <label class="small-only span2">Short interest (% of float)<input type="number" id="gSI" value="10"></label>
+        <label class="large-only span2">Catalyst
+          <select id="lCat">
+            <option value="guide">Earnings miss / guidance cut</option>
+            <option value="down">Analyst downgrade</option>
+            <option value="sector">Negative sector or peer news</option>
+            <option value="fade">Gap up on modest news, now fading</option>
+            <option value="none">No catalyst</option>
+            <option value="good">Good news, stock holding gains</option>
+          </select></label>
+        <label class="large-only">Market (SPY / QQQ)
+          <select id="lMkt">
+            <option value="down">Red, trending down</option>
+            <option value="flat" selected>Flat / choppy</option>
+            <option value="up">Green, trending up</option>
+            <option value="rip">Ripping on macro news</option>
+          </select></label>
+        <label class="large-only">Stock vs SPY
+          <select id="lRS">
+            <option value="much">Much weaker (red while SPY green)</option>
+            <option value="some">Slightly weaker</option>
+            <option value="same">In line</option>
+            <option value="strong">Stronger</option>
+          </select></label>
+        <label class="large-only">Sector ETF
+          <select id="lSector">
+            <option value="weak">Weak</option>
+            <option value="flat" selected>Neutral</option>
+            <option value="strong">Strong</option>
+          </select></label>
+        <label class="large-only">Relative volume (×)<input type="number" id="lRvol" value="2.5" step="0.1"></label>
+        <label class="large-only span2">Key level
+          <select id="lLevel">
+            <option value="below">Below prior-day low / opening-range low</option>
+            <option value="resist">Rejecting resistance (VWAP, prior close, gap fill)</option>
+            <option value="mid">Middle of the range</option>
+            <option value="breakout">Breaking above prior-day high</option>
+          </select></label>
+        <label class="span2 small-only">Day of the move
+          <select id="gDay">
+            <option value="d1">Day 1 — first big move, still today</option>
+            <option value="frd">Day 2+ — first red day after a multi-day run</option>
+            <option value="d2up">Day 2+ — still making higher highs</option>
+          </select></label>
+        <label class="span2 small-only">Catalyst
+          <select id="gCat">
+            <option value="none">No news / vague or recycled PR</option>
+            <option value="fluff">Fluff PR (partnership, AI/crypto pivot, letter to shareholders)</option>
+            <option value="moderate">Moderate news (earnings beat, small contract)</option>
+            <option value="strong">Strong catalyst (buyout, major FDA approval, huge contract)</option>
+          </select></label>
+        <label class="span2">Price action right now
+          <select id="gPA">
+            <option value="belowvwap">Below VWAP, failing to reclaim</option>
+            <option value="lowerhigh">Rejected at HOD, lower high forming</option>
+            <option value="abovevwap">Above VWAP, making higher highs</option>
+            <option value="parabolic">Parabolic: vertical with no pullbacks</option>
+            <option value="haltingup">Halting up</option>
+          </select></label>
+        <label class="span2 small-only">Borrow
+          <select id="gBorrow">
+            <option value="etb">Easy to borrow</option>
+            <option value="htbcheap">Hard to borrow, cheap locate (&lt; 2% of price)</option>
+            <option value="htbexp">Hard to borrow, expensive locate</option>
+            <option value="none">No shares available</option>
+          </select></label>
+        <label class="span2">Time of day
+          <select id="gTime">
+            <option value="pm">Pre-market</option>
+            <option value="open">First 15 minutes</option>
+            <option value="morning" selected>9:45 – 11:30</option>
+            <option value="mid">Midday (11:30 – 2:00)</option>
+            <option value="late">Afternoon / power hour</option>
+          </select></label>
+        <fieldset class="span2 small-only">
+          <legend>Dilution &amp; supply (check all that apply)</legend>
+          <label class="chk"><input type="checkbox" id="gS3"> Effective S-3 shelf / active ATM</label>
+          <label class="chk"><input type="checkbox" id="gWarrants"> Warrants or converts in the money</label>
+          <label class="chk"><input type="checkbox" id="gRecent"> Has done offerings in the last 12 months</label>
+          <label class="chk"><input type="checkbox" id="gCash"> Low cash / burning money (needs to raise)</label>
+          <label class="chk"><input type="checkbox" id="gRS"> Recent reverse split</label>
+        </fieldset>
+      </div>
+    </div>
+    <div class="card" id="gradeOut"></div>
+  </div>
+</section>
+
+<!-- JOURNAL -->
+<section id="tab-journal" class="tab">
+  <div class="two-col journal-top">
+    <div class="card">
+      <h2>Log a trade</h2>
+      <form id="jForm" class="form-grid">
+        <label>Date<input type="date" id="jDate" required></label>
+        <label>Ticker<input type="text" id="jTicker" maxlength="6" required></label>
+        <label class="span2">Setup
+          <select id="jSetup">
+            <optgroup label="Small caps">
+            <option>Gap &amp; fade / backside</option>
+            <option>First red day</option>
+            <option>VWAP rejection</option>
+            <option>Failed HOD break / lower high</option>
+            <option>Parabolic exhaustion</option>
+            <option>Offering / dilution dump</option>
+            </optgroup>
+            <optgroup label="Large caps">
+            <option>LC · Earnings gap-down continuation</option>
+            <option>LC · Opening-range breakdown</option>
+            <option>LC · Relative weakness / VWAP rejection</option>
+            <option>LC · Gap-up fade (gap fill)</option>
+            <option>LC · Failed prior-day-high breakout</option>
+            </optgroup>
+            <option>Other</option>
+          </select></label>
+        <label>Avg short entry<input type="number" id="jEntry" step="0.0001" required></label>
+        <label>Avg cover price<input type="number" id="jExit" step="0.0001" required></label>
+        <label>Shares<input type="number" id="jShares" required></label>
+        <label>Initial stop<input type="number" id="jStop" step="0.0001"></label>
+        <label>Fees + locates ($)<input type="number" id="jFees" step="0.01" value="0"></label>
+        <label class="chk"><input type="checkbox" id="jPlan" checked> Followed my plan</label>
+        <label class="span2">Notes<textarea id="jNotes" rows="2" placeholder="What did you see? What would you do differently?"></textarea></label>
+        <button class="btn span2" type="submit">Add trade</button>
+      </form>
+    </div>
+    <div class="card">
+      <div class="journal-head">
+        <h2>Performance</h2>
+        <select id="jFilter"><option value="all">All trades</option><option value="live">Live only</option><option value="sim">Sim only</option></select>
+      </div>
+      <div class="stat-grid" id="jStats"></div>
+      <canvas id="equityChart" height="160"></canvas>
+      <div id="jBySetup"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="journal-head">
+      <h2>Trades</h2>
+      <div>
+        <button class="btn ghost sm" id="jExport">Export JSON</button>
+        <label class="btn ghost sm file-btn">Import<input type="file" id="jImport" accept="application/json"></label>
+      </div>
+    </div>
+    <div class="table-wrap"><table id="jTable"></table></div>
+  </div>
+</section>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="modal-box card">
+    <div id="modalBody"></div>
+    <button class="btn" id="modalClose">Close</button>
+  </div>
+</div>
+
+<script src="lessons.js?v=2"></script>
+<script src="sim.js?v=2"></script>
+<script src="app.js?v=2"></script>
+</body>
+</html>
